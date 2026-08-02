@@ -6,14 +6,86 @@
     <title>正在做的事... - Annoch</title>
     <link rel="stylesheet" href="/assets/style.css">
     <script src="/assets/load.js" defer></script>
+    <style>
+        .doing-list { list-style: none; padding: 0; }
+        .doing-list li { padding: 14px 0; border-bottom: 1px solid #eee; }
+        .doing-list a { color: #222; text-decoration: none; font-size: 18px; font-weight: 500; display: block; }
+        .doing-list a:hover { color: #1a73e8; }
+        .doing-list .file-icon { color: #999; font-size: 14px; font-weight: normal; margin-left: 10px; }
+        .doing-content { max-width: 100%; overflow-wrap: break-word; }
+        .doing-content img { max-width: 100%; height: auto; border-radius: 4px; margin: 16px 0; }
+        .doing-content pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 14px; }
+        .doing-content blockquote { border-left: 4px solid #ddd; padding-left: 20px; margin: 16px 0; color: #666; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #1a73e8; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        .loading, .empty, .error { padding: 32px 0; text-align: center; color: #888; }
+        .error { color: #c0392b; }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="site-title"><a href="/">Annoch (ᗜᴗᗜ)</a></div>
         <div class="site-desc"></div>
         <div id="nav-placeholder"></div>
-        <p>没有正在做的事情...</p>
+        <div id="content"><div class="loading">加载中...</div></div>
         <div class="footer">&copy; 2026 Annoch (ᗜᴗᗜ)</div>
     </div>
+    <script>
+        var REPO_OWNER = 'annochqwq';
+        var REPO_NAME = 'annochqwq.github.io';
+        var BRANCH = 'main';
+        var DOING_PATH = 'doing';
+
+        function renderContent(text) {
+            var html = text;
+            html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            html = html.replace(/```([\s\S]*?)```/g, function(match, code) {
+                return '<pre><code>' + code.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+            });
+            html = html.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>');
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            html = html.replace(/\n/g, '<br>');
+            return html;
+        }
+
+        async function loadDoing() {
+            var c = document.getElementById('content');
+            var params = new URLSearchParams(window.location.search);
+            var item = params.get('item');
+
+            if (item) {
+                try {
+                    var res = await fetch('https://raw.githubusercontent.com/' + REPO_OWNER + '/' + REPO_NAME + '/' + BRANCH + '/' + DOING_PATH + '/' + item);
+                    if (!res.ok) throw new Error('');
+                    var text = await res.text();
+                    c.innerHTML = '<a href="/doing/" class="back-link">← 返回列表</a><div class="doing-content">' + renderContent(text) + '</div>';
+                } catch {
+                    c.innerHTML = '<a href="/doing/" class="back-link">← 返回列表</a><div class="error">加载失败 (ᗜᴗᗜ)</div>';
+                }
+                return;
+            }
+
+            try {
+                var res = await fetch('https://api.github.com/repos/' + REPO_OWNER + '/' + REPO_NAME + '/contents/' + DOING_PATH + '?ref=' + BRANCH);
+                if (!res.ok) { c.innerHTML = '<div class="empty">还没有记录 (ᗜᴗᗜ)</div>'; return; }
+                var data = await res.json();
+                var files = data.filter(function(i) { return i.type === 'file' && i.name.endsWith('.txt') && i.name !== 'index.html'; });
+                if (files.length === 0) { c.innerHTML = '<div class="empty">还没有记录 (ᗜᴗᗜ)</div>'; return; }
+                files.sort(function(a, b) { return b.name.localeCompare(a.name); });
+                var html = '<ul class="doing-list">';
+                for (var f of files) {
+                    var name = f.name.replace('.txt', '');
+                    html += '<li><a href="?item=' + encodeURIComponent(f.name) + '">' + name + ' <span class="file-icon">.txt</span></a></li>';
+                }
+                html += '</ul>';
+                c.innerHTML = html;
+            } catch {
+                c.innerHTML = '<div class="error">加载失败 (ᗜᴗᗜ)</div>';
+            }
+        }
+        loadDoing();
+    </script>
 </body>
 </html>
