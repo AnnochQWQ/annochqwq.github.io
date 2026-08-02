@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Annoch的小站</title>
+    <title>Annoch的小站 (ᗜᴗᗜ)</title>
     <style>
         * {
             margin: 0;
@@ -20,7 +20,7 @@
         }
 
         .container {
-            max-width: 760px;
+            max-width: 820px;
             margin: 0 auto;
             background: #fff;
             padding: 48px 56px;
@@ -33,7 +33,7 @@
             font-weight: 600;
             letter-spacing: -0.5px;
             color: #111;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .site-description {
@@ -44,29 +44,50 @@
             padding-bottom: 24px;
         }
 
-        h1 {
-            font-size: 26px;
-            font-weight: 600;
-            margin-top: 28px;
-            margin-bottom: 14px;
-            color: #111;
+        .folder-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 8px;
         }
 
-        p {
-            margin-bottom: 18px;
-            color: #444;
+        .folder-card {
+            display: block;
+            padding: 24px 20px;
+            background: #f7f7f7;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #222;
+            transition: background 0.15s, transform 0.1s;
+            border: 1px solid #eee;
         }
 
-        .post-meta {
-            font-size: 14px;
-            color: #999;
-            margin-bottom: 20px;
+        .folder-card:hover {
+            background: #eee;
+            transform: translateY(-2px);
         }
 
-        hr {
-            border: none;
-            border-top: 1px solid #eee;
-            margin: 40px 0;
+        .folder-name {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .empty-state {
+            color: #888;
+            padding: 32px 0;
+            text-align: center;
+        }
+
+        .loading {
+            color: #888;
+            padding: 32px 0;
+            text-align: center;
+        }
+
+        .error {
+            color: #c0392b;
+            padding: 32px 0;
+            text-align: center;
         }
 
         .footer {
@@ -78,15 +99,6 @@
             text-align: center;
         }
 
-        a {
-            color: #1a73e8;
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
         @media (max-width: 600px) {
             .container {
                 padding: 28px 20px;
@@ -94,8 +106,8 @@
             .site-title {
                 font-size: 22px;
             }
-            h1 {
-                font-size: 20px;
+            .folder-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -103,22 +115,70 @@
 <body>
     <div class="container">
         <header>
-            <div class="site-title">Annoch</div>
-            <div class="site-description">记录</div>
+            <div class="site-title">Annoch (ᗜᴗᗜ)</div>
+            <div class="site-description">记录与分享</div>
         </header>
 
-        <article>
-            <h1>你好</h1>
-            <div class="post-meta">2026年8月2日</div>
-            <p>你好啊</p>
-            <p>游戏繁殖基地牛逼。，</p>
-        </article>
-
-        <hr>
+        <div id="content">
+            <div class="loading">加载中...</div>
+        </div>
 
         <div class="footer">
-            &copy; 2026 Annoch
+            &copy; 2026 Annoch (ᗜᴗᗜ)
         </div>
     </div>
+
+    <script>
+        const REPO_OWNER = 'anmochqwq';
+        const REPO_NAME = 'annochqwq.github.io';
+        const BRANCH = 'main';
+
+        async function loadFolders() {
+            const container = document.getElementById('content');
+
+            try {
+                const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/?ref=${BRANCH}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        container.innerHTML = '<div class="error">仓库或分支未找到，请检查配置</div>';
+                    } else if (response.status === 403) {
+                        container.innerHTML = '<div class="error">API 请求受限，请稍后重试</div>';
+                    } else {
+                        container.innerHTML = `<div class="error">加载失败 (状态码: ${response.status})</div>`;
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                const folders = data.filter(item => item.type === 'dir');
+
+                if (folders.length === 0) {
+                    container.innerHTML = '<div class="empty-state">目前还没有内容 (ᗜᴗᗜ)</div>';
+                    return;
+                }
+
+                folders.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+
+                let html = '<div class="folder-grid">';
+                for (const folder of folders) {
+                    html += `
+                        <a href="${folder.path}/index.html" class="folder-card">
+                            <div class="folder-name">${folder.name}</div>
+                        </a>
+                    `;
+                }
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                container.innerHTML = `<div class="error">网络错误，请检查网络后刷新 (ᗜᴗᗜ)</div>`;
+                console.error(error);
+            }
+        }
+
+        loadFolders();
+    </script>
 </body>
 </html>
