@@ -7,5 +7,6 @@
 
 [链接文字](https://example.com)
 
-```代码块
-console.log('你好')
+```语言名称
+代码
+```
