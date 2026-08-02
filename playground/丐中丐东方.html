@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover">
+  <title>东方风弹幕STG </title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    body {
+      background: #0a0a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100dvh;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      touch-action: pan-x pan-y; 
+    }
+    .game-container {
+      position: relative;
+      width: 100%;
+      max-width: 450px;
+      aspect-ratio: 3 / 4;
+      background: radial-gradient(circle at center, #1a1a3a 0%, #050510 100%);
+      border: 2px solid #5a4a7a;
+      border-radius: 16px;
+      box-shadow: 0 0 30px rgba(120, 80, 180, 0.5);
+      overflow: hidden;
+      margin: 10px;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;  /* 防止触摸时页面滑动/缩放 */
+    }
+    .ui-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+      color: #f0e6ff;
+      font-weight: bold;
+      text-shadow: 2px 2px 0 #1a0a2e;
+      font-size: clamp(14px, 4vw, 18px);
+      z-index: 5;
+    }
+    .restart-btn {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30, 20, 50, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid #aa8ad0;
+      color: #e6d9ff;
+      padding: 12px 28px;
+      border-radius: 40px;
+      font-weight: bold;
+      font-size: 1rem;
+      letter-spacing: 2px;
+      pointer-events: auto;
+      z-index: 10;
+      cursor: pointer;
+      transition: 0.2s;
+      backdrop-filter: blur(8px);
+    }
+    .restart-btn:active {
+      background: #6a4a9a;
+      transform: translateX(-50%) scale(0.95);
+    }
+    @media (max-width: 400px) {
+      .game-container {
+        border-radius: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+  <div class="game-container" id="gameContainer">
+    <canvas id="gameCanvas" aria-label="东方风格弹幕游戏"></canvas>
+    <div class="ui-overlay">
+      <span>💖 <span id="hpDisplay">3</span></span>
+      <span>✨ <span id="scoreDisplay">0</span></span>
+    </div>
+    <button class="restart-btn" id="restartButton">重新开始</button>
+  </div>
+  <p style="color:#7a6a9a; margin-top: 8px; font-size: 0.8rem;">触摸拖动控制角色 · 躲避弹幕</p>
+</div>
+
+<script>
+  (function() {
+    // ---------- 画布与上下文 ----------
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // UI元素
+    const hpSpan = document.getElementById('hpDisplay');
+    const scoreSpan = document.getElementById('scoreDisplay');
+
+    // 固定逻辑尺寸 (保持性能与视觉一致)
+    const LOGIC_WIDTH = 360;
+    const LOGIC_HEIGHT = 480;
+    
+    // 玩家设定
+    const PLAYER_RADIUS = 8;
+    const PLAYER_SPEED = 5.5;
+    
+    // 游戏状态
+    let player = {
+      x: LOGIC_WIDTH / 2,
+      y: LOGIC_HEIGHT - 60,
+      radius: PLAYER_RADIUS,
+      hp: 3,
+      invincible: false,
+      invincibleTimer: 0,
+      blink: 0
+    };
+    
+    let bullets = [];           // 敌方弹幕
+    let score = 0;
+    let gameOver = false;
+    let frameCount = 0;
+    
+    // 触摸/鼠标控制
+    let pointerActive = false;
+    let targetX = player.x;
+    let targetY = player.y;
+    
+    // 性能优化：对象池与批量处理
+    const MAX_BULLETS = 380;    // 弹幕数量上限，防止无限增长
+    let bulletPool = [];
+    
+    // ---------- 辅助函数：弹幕对象池 ----------
+    function createBullet(x, y, vx, vy, radius = 4, color = '#ff80c0') {
+      // 从池中取或用新对象
+      let b;
+      if (bulletPool.length > 0) {
+        b = bulletPool.pop();
+        b.x = x; b.y = y; b.vx = vx; b.vy = vy; b.radius = radius; b.color = color;
+        b.active = true;
+      } else {
+        b = { x, y, vx, vy, radius, color, active: true };
+      }
+      return b;
+    }
+    
+    function releaseBullet(b) {
+      b.active = false;
+      if (bulletPool.length < 450) { // 限制池大小
+        bulletPool.push(b);
+      }
+    }
+    
+    // 清空所有弹幕（游戏重置用）
+    function clearAllBullets() {
+      for (let b of bullets) {
+        b.active = false;
+        if (bulletPool.length < 450) bulletPool.push(b);
+      }
+      bullets = [];
+    }
+    
+    // ---------- 生成弹幕模式 (东方风格，多样化) ----------
+    function spawnBulletPattern() {
+      if (gameOver) return;
+      
+      // 根据帧数切换不同模式，保持弹幕丰富且不卡顿
+      let pattern = Math.floor(frameCount / 80) % 5;  // 每80帧切换一次模式
+      
+      const centerX = LOGIC_WIDTH / 2;
+      const topY = 30;
+      const sideMargin = 30;
+      
+      // 限制每次生成数量，配合帧率稳定
+      let bulletsToAdd = [];
+      
+      // 模式0: 圆形扩散弹幕 (从上方中心)
+      if (pattern === 0) {
+        let count = 16;
+        let angleStep = (Math.PI * 2) / count;
+        let baseAngle = frameCount * 0.08;
+        for (let i = 0; i < count; i++) {
+          let angle = baseAngle + i * angleStep;
+          let speed = 2.6;
+          let vx = Math.cos(angle) * speed;
+          let vy = Math.sin(angle) * speed * 0.9 + 1.2;
+          bulletsToAdd.push(createBullet(centerX, topY + 10, vx, vy, 4.5, '#ff6ea0'));
+        }
+      }
+      // 模式1: 扇形弹幕 (从左/右交替)
+      else if (pattern === 1) {
+        let side = (frameCount % 160 < 80) ? 'left' : 'right';
+        let startX = side === 'left' ? sideMargin : LOGIC_WIDTH - sideMargin;
+        let dirX = side === 'left' ? 1.8 : -1.8;
+        for (let i = 0; i < 8; i++) {
+          let angleOffset = (i - 3.5) * 0.2;
+          let vx = dirX + Math.sin(angleOffset) * 1.5;
+          let vy = 2.5 + Math.cos(angleOffset) * 0.5;
+          bulletsToAdd.push(createBullet(startX, topY + 25 + i * 6, vx, vy, 4, '#c98af0'));
+        }
+      }
+      // 模式2: 螺旋弹幕 (中心旋转)
+      else if (pattern === 2) {
+        let arms = 5;
+        let baseAngle = frameCount * 0.05;
+        for (let a = 0; a < arms; a++) {
+          let angle = baseAngle + (a * Math.PI * 2) / arms;
+          let speed = 2.3;
+          let vx = Math.cos(angle) * speed;
+          let vy = Math.sin(angle) * speed * 0.9 + 0.7;
+          bulletsToAdd.push(createBullet(centerX, topY + 40, vx, vy, 4.2, '#70d6ff'));
+        }
+      }
+      // 模式3: 随机散射弹幕 (优化：限制数量)
+      else if (pattern === 3) {
+        let count = 10;
+        for (let i = 0; i < count; i++) {
+          let angle = Math.random() * Math.PI * 0.9 + Math.PI * 0.05; // 大致向下
+          let speed = 2.0 + Math.random() * 2.2;
+          let vx = Math.cos(angle) * speed * 0.9;
+          let vy = Math.sin(angle) * speed * 0.9 + 0.9;
+          bulletsToAdd.push(createBullet(
+            Math.random() * (LOGIC_WIDTH - 50) + 25,
+            topY + Math.random() * 20,
+            vx, vy, 3.8 + Math.random() * 2.5, '#ffaa70'
+          ));
+        }
+      }
+      // 模式4: 密集直线+扩散混合
+      else {
+        // 三列直线弹
+        for (let col = 0; col < 3; col++) {
+          let x = 60 + col * 120;
+          for (let j = 0; j < 5; j++) {
+            bulletsToAdd.push(createBullet(x, topY + j * 14, 0, 3.2, 4, '#f0e68c'));
+          }
+        }
+        // 附加一些散射
+        for (let i = 0; i < 6; i++) {
+          let angle = -0.4 + Math.random() * 0.8;
+          let vx = Math.sin(angle) * 2.5;
+          let vy = Math.cos(angle) * 2.8;
+          bulletsToAdd.push(createBullet(centerX, topY + 15, vx, vy, 4, '#ff8c94'));
+        }
+      }
+      
+      // 将生成的子弹加入数组，并控制总量
+      for (let b of bulletsToAdd) {
+        if (bullets.length < MAX_BULLETS) {
+          bullets.push(b);
+        } else {
+          // 超过上限则回收，避免内存/渲染压力
+          releaseBullet(b);
+        }
+      }
+    }
+    
+    // ---------- 更新逻辑 ----------
+    function update() {
+      if (gameOver) return;
+      
+      frameCount++;
+      
+      // 玩家移动：平滑趋向目标位置 (触摸/鼠标)
+      if (pointerActive) {
+        let dx = targetX - player.x;
+        let dy = targetY - player.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 1.5) {
+          let move = Math.min(dist, PLAYER_SPEED);
+          player.x += (dx / dist) * move;
+          player.y += (dy / dist) * move;
+        } else {
+          player.x = targetX;
+          player.y = targetY;
+        }
+      }
+      
+      // 边界限制
+      player.x = Math.max(player.radius, Math.min(LOGIC_WIDTH - player.radius, player.x));
+      player.y = Math.max(player.radius, Math.min(LOGIC_HEIGHT - player.radius, player.y));
+      
+      // 无敌倒计时与闪烁
+      if (player.invincible) {
+        player.invincibleTimer--;
+        player.blink = (player.blink + 1) % 10;
+        if (player.invincibleTimer <= 0) {
+          player.invincible = false;
+        }
+      }
+      
+      // 更新弹幕位置 & 碰撞检测 & 回收
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        if (!b.active) {
+          bullets.splice(i, 1);
+          continue;
+        }
+        
+        // 移动
+        b.x += b.vx;
+        b.y += b.vy;
+        
+        // 超出边界回收
+        if (b.y > LOGIC_HEIGHT + 25 || b.y < -25 || b.x < -30 || b.x > LOGIC_WIDTH + 30) {
+          releaseBullet(b);
+          bullets.splice(i, 1);
+          continue;
+        }
+        
+        // 碰撞检测 (仅当玩家不处于无敌状态)
+        if (!player.invincible && !gameOver) {
+          let dx = b.x - player.x;
+          let dy = b.y - player.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < player.radius + b.radius) {
+            // 玩家受伤
+            player.hp--;
+            hpSpan.textContent = player.hp;
+            
+            // 移除这颗子弹
+            releaseBullet(b);
+            bullets.splice(i, 1);
+            
+            // 检查游戏结束
+            if (player.hp <= 0) {
+              gameOver = true;
+              player.hp = 0;
+              hpSpan.textContent = "0";
+            } else {
+              // 激活无敌状态
+              player.invincible = true;
+              player.invincibleTimer = 90; // 约1.5秒 (60fps)
+            }
+            // 受伤后跳过剩余子弹处理，避免一帧多次受伤(无敌已开启)
+            if (player.invincible) break; 
+          }
+        }
+      }
+      
+      // 如果玩家死亡，不再生成弹幕
+      if (gameOver) return;
+      
+      // 分数随时间增加
+      score += 1;
+      scoreSpan.textContent = score;
+      
+      // 弹幕生成控制：每6帧尝试生成一次（约每秒10次），保证密度但优化性能
+      if (frameCount % 6 === 0) {
+        spawnBulletPattern();
+      }
+      
+      // 额外清理：如果子弹数组意外过长，强制裁剪 (安全阀)
+      if (bullets.length > MAX_BULLETS) {
+        let removeCount = bullets.length - MAX_BULLETS;
+        for (let i = 0; i < removeCount; i++) {
+          if (bullets[i]) {
+            releaseBullet(bullets[i]);
+          }
+        }
+        bullets.splice(0, removeCount);
+      }
+    }
+    
+    // ---------- 渲染 ----------
+    function draw() {
+      ctx.clearRect(0, 0, LOGIC_WIDTH, LOGIC_HEIGHT);
+      
+      // 绘制装饰性背景网格 (轻微)
+      ctx.strokeStyle = '#2a1a4a';
+      ctx.lineWidth = 0.6;
+      for (let i = 0; i < LOGIC_WIDTH; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, LOGIC_HEIGHT);
+        ctx.strokeStyle = '#2a1f4a';
+        ctx.stroke();
+      }
+      for (let j = 0; j < LOGIC_HEIGHT; j += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, j);
+        ctx.lineTo(LOGIC_WIDTH, j);
+        ctx.stroke();
+      }
+      
+      // 绘制弹幕 (批量优化：相同颜色可合并，但为了清晰分别绘制)
+      for (let b of bullets) {
+        if (!b.active) continue;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        // 东方风格弹幕：发光核心
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 7;
+        ctx.fillStyle = b.color;
+        ctx.fill();
+        // 内圈高亮
+        ctx.shadowBlur = 3;
+        ctx.fillStyle = '#ffffff';
+        ctx.arc(b.x, b.y, b.radius * 0.55, 0, Math.PI*2);
+        ctx.fill();
+        // 重置阴影避免影响后续
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
+      }
+      
+      // 绘制玩家 (灵梦风格红白)
+      if (!gameOver) {
+        ctx.save();
+        // 无敌闪烁效果：每6帧绘制一次
+        if (player.invincible && Math.floor(player.blink / 3) % 2 === 0) {
+          ctx.globalAlpha = 0.5;
+        }
+        
+        // 角色主体
+        ctx.shadowColor = '#ff5577';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2);
+        ctx.fillStyle = '#ff4d6d';
+        ctx.fill();
+        // 白色内圈
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius-2, 0, Math.PI*2);
+        ctx.fillStyle = '#ffe5ec';
+        ctx.fill();
+        // 瞳孔/点
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y-1, 2.2, 0, Math.PI*2);
+        ctx.fillStyle = '#1a0a2e';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(player.x, player.y-1, 1, 0, Math.PI*2);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+        
+        // 判定点提示 (小圆点)
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 2.5, 0, 2*Math.PI);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        
+        ctx.restore();
+      } else {
+        // 游戏结束显示
+        ctx.fillStyle = '#ffb3c6';
+        ctx.font = 'bold 20px "Segoe UI", "Yu Gothic", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#aa0000';
+        ctx.shadowBlur = 10;
+        ctx.fillText('游戏结束', LOGIC_WIDTH/2, LOGIC_HEIGHT/2-20);
+        ctx.shadowBlur = 0;
+      }
+    }
+    
+    // ---------- 游戏循环 (使用requestAnimationFrame稳定60fps) ----------
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    
+    // ---------- 重置游戏 ----------
+    function restartGame() {
+      gameOver = false;
+      player.hp = 3;
+      player.invincible = false;
+      player.invincibleTimer = 0;
+      player.blink = 0;
+      player.x = LOGIC_WIDTH / 2;
+      player.y = LOGIC_HEIGHT - 60;
+      targetX = player.x;
+      targetY = player.y;
+      score = 0;
+      frameCount = 0;
+      
+      clearAllBullets();
+      
+      hpSpan.textContent = "3";
+      scoreSpan.textContent = "0";
+      
+      pointerActive = false;  // 重置触摸状态
+    }
+    
+    // ---------- 输入处理 (移动端触摸 + 鼠标适配) ----------
+    function handleStart(e) {
+      e.preventDefault();
+      if (gameOver) return;
+      const coords = getCanvasCoords(e);
+      if (coords) {
+        pointerActive = true;
+        targetX = coords.x;
+        targetY = coords.y;
+      }
+    }
+    
+    function handleMove(e) {
+      e.preventDefault();
+      if (!pointerActive || gameOver) return;
+      const coords = getCanvasCoords(e);
+      if (coords) {
+        targetX = coords.x;
+        targetY = coords.y;
+      }
+    }
+    
+    function handleEnd(e) {
+      e.preventDefault();
+      pointerActive = false;
+      // 可选：保持最后位置，但不自动移动
+    }
+    
+    // 获取相对于逻辑画布的坐标
+    function getCanvasCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect) return null;
+      
+      let clientX, clientY;
+      
+      if (e.touches) {
+        // 触摸事件
+        if (e.touches.length === 0) return null;
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        // 鼠标事件
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      // 计算比例映射到逻辑尺寸
+      const scaleX = LOGIC_WIDTH / rect.width;
+      const scaleY = LOGIC_HEIGHT / rect.height;
+      
+      let logicX = (clientX - rect.left) * scaleX;
+      let logicY = (clientY - rect.top) * scaleY;
+      
+      // 边界裁剪
+      logicX = Math.max(PLAYER_RADIUS, Math.min(LOGIC_WIDTH - PLAYER_RADIUS, logicX));
+      logicY = Math.max(PLAYER_RADIUS, Math.min(LOGIC_HEIGHT - PLAYER_RADIUS, logicY));
+      
+      return { x: logicX, y: logicY };
+    }
+    
+    // ---------- 事件绑定 ----------
+    function bindEvents() {
+      // 触摸事件
+      canvas.addEventListener('touchstart', handleStart, { passive: false });
+      canvas.addEventListener('touchmove', handleMove, { passive: false });
+      canvas.addEventListener('touchend', handleEnd);
+      canvas.addEventListener('touchcancel', handleEnd);
+      
+      // 鼠标事件 (便于开发调试)
+      canvas.addEventListener('mousedown', handleStart);
+      window.addEventListener('mousemove', (e) => {
+        if (e.buttons === 1 && pointerActive && !gameOver) { // 左键按下
+          handleMove(e);
+        }
+      });
+      window.addEventListener('mouseup', handleEnd);
+      
+      // 重启按钮
+      document.getElementById('restartButton').addEventListener('click', restartGame);
+      document.getElementById('restartButton').addEventListener('touchend', (e) => {
+        e.preventDefault();
+        restartGame();
+      });
+    }
+    
+    // 初始化画布大小与逻辑尺寸
+    function resizeCanvas() {
+      const container = document.getElementById('gameContainer');
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      canvas.width = LOGIC_WIDTH;
+      canvas.height = LOGIC_HEIGHT;
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+    }
+    
+    window.addEventListener('resize', resizeCanvas);
+    
+    // 启动一切
+    resizeCanvas();
+    bindEvents();
+    restartGame(); // 初始状态
+    gameLoop();
+  })();
+</script>
+</body>
+</html>
