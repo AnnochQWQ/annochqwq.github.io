@@ -2,7 +2,14 @@
 title: 主页
 ---
 <div class="folder-grid">
-    {% assign folders = site.pages | where_exp: "item", "item.dir != '/'" | map: "dir" | uniq | sort %}
+    {% assign all_folders = site.pages | where_exp: "item", "item.dir != '/'" | map: "dir" | uniq | sort %}
+{% assign folders = "" | split: "" %}
+{% for f in all_folders %}
+    {% assign folder_name = f | remove: "/" %}
+    {% if folder_name != "assets" %}
+        {% assign folders = folders | push: f %}
+    {% endif %}
+{% endfor %}
     {% if folders.size == 0 %}
         <div class="empty-state">目前还没有内容 (ᗜᴗᗜ)</div>
     {% else %}
