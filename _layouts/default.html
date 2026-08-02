@@ -133,13 +133,13 @@
         <nav class="nav">
             <a href="/" {% if page.url == "/" %}class="active"{% endif %}>主页</a>
             {% assign all_folders = site.pages | where_exp: "item", "item.dir != '/'" | map: "dir" | uniq | sort %}
-{% assign folders = "" | split: "" %}
-{% for f in all_folders %}
-    {% assign folder_name = f | remove: "/" %}
-    {% if folder_name != "assets" %}
-        {% assign folders = folders | push: f %}
-    {% endif %}
-{% endfor %}
+            {% assign folders = "" | split: "" %}
+            {% for f in all_folders %}
+                {% assign folder_name = f | remove: "/" %}
+                {% if folder_name != "assets" %}
+                    {% assign folders = folders | push: f %}
+                {% endif %}
+            {% endfor %}
             {% for folder in folders %}
                 {% assign folder_name = folder | remove: "/" %}
                 <a href="{{ folder }}">{{ folder_name }}</a>
