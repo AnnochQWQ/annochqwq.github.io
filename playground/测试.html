@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover">
+  <title>星尘跑者 · 无尽跑酷</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    }
+    body {
+      background: #0a0f1e;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      touch-action: pan-y pinch-zoom; /* 保留垂直滑动和缩放，画布内由js处理 */
+    }
+    .game-container {
+      width: 100%;
+      max-width: 450px;
+      margin: 0 auto;
+      position: relative;
+      border-radius: 36px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -8px rgba(0,0,0,0.8), 0 0 0 2px rgba(255,255,255,0.1);
+      background: #03050a;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: radial-gradient(circle at 20% 20%, #1a1f35, #0b0d1a);
+    }
+    .ui-overlay {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+    .score-panel {
+      background: rgba(10, 15, 30, 0.8);
+      backdrop-filter: blur(12px);
+      border-radius: 40px;
+      padding: 10px 22px;
+      color: white;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.15);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .score-icon {
+      font-size: 20px;
+      filter: drop-shadow(0 0 6px gold);
+    }
+    .score-value {
+      font-weight: 700;
+      font-size: 26px;
+      letter-spacing: 1px;
+      background: linear-gradient(180deg, #fff 0%, #ffd966 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .restart-btn {
+      background: rgba(20, 25, 45, 0.8);
+      backdrop-filter: blur(12px);
+      border-radius: 40px;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      border: 1px solid rgba(255,255,255,0.25);
+      color: white;
+      pointer-events: auto;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+      transition: all 0.2s ease;
+      background: rgba(30, 35, 55, 0.9);
+    }
+    .restart-btn:active {
+      transform: scale(0.92);
+      background: rgba(60, 70, 100, 0.9);
+    }
+    .game-over-message {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(16px);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 50px;
+      font-weight: bold;
+      font-size: 20px;
+      letter-spacing: 2px;
+      border: 1px solid rgba(255,255,255,0.25);
+      white-space: nowrap;
+      pointer-events: none;
+      display: none;
+      text-shadow: 0 4px 10px black;
+    }
+    .instructions {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      padding: 6px 20px;
+      border-radius: 30px;
+      white-space: nowrap;
+      pointer-events: none;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <canvas id="gameCanvas" width="360" height="700" aria-label="星尘跑者游戏画布"></canvas>
+    <div class="ui-overlay">
+      <div class="score-panel">
+        <span class="score-icon">✨</span>
+        <span class="score-value" id="scoreDisplay">0</span>
+      </div>
+      <div class="restart-btn" id="restartButton" role="button" aria-label="重新开始">↺</div>
+    </div>
+    <div class="game-over-message" id="gameOverMsg">💫 游戏结束</div>
+    <div class="instructions">👆 点击屏幕跳跃</div>
+  </div>
+
+  <script>
+    (function() {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const scoreSpan = document.getElementById('scoreDisplay');
+      const gameOverDiv = document.getElementById('gameOverMsg');
+
+      // 固定尺寸 (移动端友好)
+      const CANVAS_WIDTH = 360;
+      const CANVAS_HEIGHT = 700;
+      canvas.width = CANVAS_WIDTH;
+      canvas.height = CANVAS_HEIGHT;
+
+      // ----- 游戏状态 -----
+      let gameActive = false;
+      let score = 0;
+
+      // 玩家属性
+      const PLAYER_WIDTH = 28;
+      const PLAYER_HEIGHT = 32;
+      const PLAYER_X = 70;  // 水平固定位置
+
+      let playerY = CANVAS_HEIGHT - 100;
+      let playerVy = 0;
+      const GRAVITY = 0.7;
+      const JUMP_FORCE = -9.2;
+      const GROUND_Y = CANVAS_HEIGHT - 80; // 地面高度 (视觉地面线)
+
+      // 障碍物设定
+      let obstacles = [];
+      const OBSTACLE_WIDTH = 24;
+      const OBSTACLE_HEIGHT = 38;
+      const OBSTACLE_SPEED = 5.2;       // 移动速度
+      let obstacleSpawnCounter = 0;
+      const SPAWN_DELAY = 58;          // 帧数间隔生成
+
+      // 星星背景 (装饰)
+      let stars = [];
+      const STAR_COUNT = 45;
+
+      // ----- 初始化背景星星 -----
+      function generateStars() {
+        stars = [];
+        for (let i = 0; i < STAR_COUNT; i++) {
+          stars.push({
+            x: Math.random() * CANVAS_WIDTH,
+            y: Math.random() * CANVAS_HEIGHT,
+            radius: Math.random() * 2.2 + 0.8,
+            brightness: Math.random() * 0.7 + 0.3,
+            speed: Math.random() * 0.4 + 0.15
+          });
+        }
+      }
+      generateStars();
+
+      // ----- 重置整个游戏 -----
+      function resetGame() {
+        gameActive = true;
+        score = 0;
+        updateScoreDisplay();
+        obstacles = [];
+        playerY = GROUND_Y - PLAYER_HEIGHT/2;  // 让玩家脚贴地面 (玩家坐标为中心)
+        playerVy = 0;
+        obstacleSpawnCounter = 0;
+        gameOverDiv.style.display = 'none';
+        // 重新稍微随机星星位置 (可选)
+        stars.forEach(s => {
+          s.x = Math.random() * CANVAS_WIDTH;
+          s.y = Math.random() * CANVAS_HEIGHT;
+        });
+      }
+
+      // 结束游戏
+      function endGame() {
+        if (!gameActive) return;
+        gameActive = false;
+        gameOverDiv.style.display = 'block';
+      }
+
+      // 跳跃动作
+      function performJump() {
+        if (!gameActive) {
+          // 如果游戏未激活，点击可以重新开始 (方便)
+          resetGame();
+          return;
+        }
+        // 只有在地面附近才能跳跃 (玩家脚部接近地面)
+        const playerBottom = playerY + PLAYER_HEIGHT/2;
+        if (playerBottom >= GROUND_Y - 2 && playerVy >= -0.5) {
+          playerVy = JUMP_FORCE;
+          // 添加一点跳跃音效感(无声音，通过视觉反馈)
+        }
+      }
+
+      // 更新分数显示
+      function updateScoreDisplay() {
+        scoreSpan.textContent = Math.floor(score);
+      }
+
+      // ----- 碰撞检测 (矩形重叠) -----
+      function checkCollision(playerRect, obstacleRect) {
+        return (playerRect.x < obstacleRect.x + obstacleRect.w &&
+                playerRect.x + playerRect.w > obstacleRect.x &&
+                playerRect.y < obstacleRect.y + obstacleRect.h &&
+                playerRect.y + playerRect.h > obstacleRect.y);
+      }
+
+      // ----- 生成新障碍物 -----
+      function spawnObstacle() {
+        // 障碍物出现在右侧外部，y坐标基于地面
+        const obstacleY = GROUND_Y - OBSTACLE_HEIGHT; // 底部贴地
+        obstacles.push({
+          x: CANVAS_WIDTH,
+          y: obstacleY,
+          width: OBSTACLE_WIDTH,
+          height: OBSTACLE_HEIGHT,
+          // 轻微随机颜色变化
+          color: `hsl(${Math.random() * 20 + 200}, 75%, 60%)`
+        });
+      }
+
+      // ----- 更新逻辑 -----
+      function update() {
+        if (!gameActive) return;
+
+        // 1. 玩家物理
+        playerVy += GRAVITY;
+        playerY += playerVy;
+
+        // 地面碰撞与限制
+        const playerBottom = playerY + PLAYER_HEIGHT/2;
+        if (playerBottom >= GROUND_Y) {
+          playerY = GROUND_Y - PLAYER_HEIGHT/2;
+          playerVy = 0;
+        }
+        // 防止飞出顶部 (极少情况)
+        if (playerY - PLAYER_HEIGHT/2 < 0) {
+          playerY = PLAYER_HEIGHT/2;
+          playerVy = 0;
+        }
+
+        // 2. 移动障碍物 & 移除屏幕外
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const obs = obstacles[i];
+          obs.x -= OBSTACLE_SPEED;
+
+          // 移除完全离开左侧屏幕的障碍物，并增加分数(通过障碍奖励)
+          if (obs.x + obs.width < 0) {
+            obstacles.splice(i, 1);
+            // 成功躲避障碍物，加分 (只有游戏活跃时)
+            if (gameActive) {
+              score += 10;
+              updateScoreDisplay();
+            }
+          }
+        }
+
+        // 3. 生成障碍物逻辑
+        if (gameActive) {
+          obstacleSpawnCounter++;
+          if (obstacleSpawnCounter >= SPAWN_DELAY) {
+            spawnObstacle();
+            obstacleSpawnCounter = 0;
+            // 动态稍微增加难度：随着分数提高，生成间隔略微减小(最低35帧)
+            // 但保持可玩性，使用动态SPAWN_DELAY调整(不直接修改常量，使用变量)
+          }
+          // 动态调整生成速度基于分数 (难度曲线)
+          let dynamicDelay = Math.max(32, SPAWN_DELAY - Math.floor(score / 180));
+          if (obstacleSpawnCounter >= dynamicDelay) {
+            spawnObstacle();
+            obstacleSpawnCounter = 0;
+          }
+        }
+
+        // 4. 碰撞检测 (玩家矩形 vs 每个障碍物)
+        const playerRect = {
+          x: PLAYER_X - PLAYER_WIDTH/2,
+          y: playerY - PLAYER_HEIGHT/2,
+          w: PLAYER_WIDTH,
+          h: PLAYER_HEIGHT
+        };
+
+        for (let obs of obstacles) {
+          const obsRect = {
+            x: obs.x,
+            y: obs.y,
+            w: obs.width,
+            h: obs.height
+          };
+          if (checkCollision(playerRect, obsRect)) {
+            endGame();
+            break; // 立即停止检测
+          }
+        }
+
+        // 额外：随时间增加微小分数 (生存奖励)
+        if (gameActive) {
+          score += 0.15;
+          updateScoreDisplay();
+        }
+      }
+
+      // ----- 绘制图形 (星空风格) -----
+      function drawStars() {
+        for (let s of stars) {
+          // 星星缓慢向左移动 (视差效果)
+          if (gameActive) {
+            s.x -= s.speed * 0.4;
+            if (s.x < -5) {
+              s.x = CANVAS_WIDTH + 5;
+              s.y = Math.random() * CANVAS_HEIGHT;
+            }
+          }
+          ctx.beginPath();
+          const alpha = s.brightness * (0.7 + 0.3 * Math.sin(Date.now() * 0.002 + s.x));
+          ctx.fillStyle = `rgba(255, 240, 200, ${alpha})`;
+          ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+          ctx.fill();
+          // 光晕
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.radius * 2.2, 0, Math.PI*2);
+          ctx.fillStyle = `rgba(180, 200, 255, ${alpha * 0.25})`;
+          ctx.fill();
+        }
+      }
+
+      function drawGround() {
+        // 地面线条与光影
+        ctx.beginPath();
+        ctx.moveTo(0, GROUND_Y);
+        ctx.lineTo(CANVAS_WIDTH, GROUND_Y);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 地面装饰光点
+        for (let i = 0; i < 12; i++) {
+          let x = (i * 35 + Date.now() * 0.15) % (CANVAS_WIDTH + 40) - 20;
+          ctx.beginPath();
+          ctx.arc(x, GROUND_Y + 3, 2, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(255, 220, 150, 0.5)';
+          ctx.fill();
+        }
+        
+        // 底部渐变区域
+        const gradient = ctx.createLinearGradient(0, GROUND_Y, 0, CANVAS_HEIGHT);
+        gradient.addColorStop(0, 'rgba(20, 30, 50, 0.7)');
+        gradient.addColorStop(1, 'rgba(5, 8, 18, 0.95)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, GROUND_Y + 2, CANVAS_WIDTH, CANVAS_HEIGHT - GROUND_Y);
+      }
+
+      function drawPlayer() {
+        const centerX = PLAYER_X;
+        const centerY = playerY;
+        
+        // 玩家发光效果
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        
+        // 外发光
+        ctx.beginPath();
+        ctx.arc(0, 0, PLAYER_WIDTH * 0.8, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(100, 180, 255, 0.25)';
+        ctx.fill();
+        
+        // 主体 (星尘跑者)
+        ctx.shadowColor = '#7ec8ff';
+        ctx.shadowBlur = 14;
+        // 身体渐变
+        const grad = ctx.createLinearGradient(-8, -12, 8, 12);
+        grad.addColorStop(0, '#d4eaff');
+        grad.addColorStop(0.6, '#3f7bcc');
+        grad.addColorStop(1, '#1a2f5a');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(0, -2, 12, 14, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // 头盔/护目镜
+        ctx.fillStyle = '#f7e05e';
+        ctx.shadowColor = '#ffbb2e';
+        ctx.beginPath();
+        ctx.arc(0, -8, 6, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.arc(-2, -10, 1.6, 0, Math.PI*2);
+        ctx.fill();
+        ctx.arc(2, -10, 1.6, 0, Math.PI*2);
+        ctx.fill();
+        
+        // 翅膀/喷气效果
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.shadowColor = '#a0d0ff';
+        ctx.beginPath();
+        ctx.moveTo(-13, 2);
+        ctx.lineTo(-19, -2);
+        ctx.lineTo(-14, 6);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(13, 2);
+        ctx.lineTo(19, -2);
+        ctx.lineTo(14, 6);
+        ctx.fill();
+        
+        ctx.restore();
+      }
+
+      function drawObstacles() {
+        for (let obs of obstacles) {
+          const x = obs.x;
+          const y = obs.y;
+          ctx.save();
+          ctx.translate(x + obs.width/2, y + obs.height/2);
+          
+          // 暗影水晶障碍
+          ctx.shadowColor = '#ff4d6d';
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = obs.color || '#c44569';
+          ctx.beginPath();
+          // 不规则晶体形状
+          ctx.moveTo(0, -obs.height/2);
+          ctx.lineTo(obs.width/2.2, -obs.height/4);
+          ctx.lineTo(obs.width/2.4, obs.height/2.5);
+          ctx.lineTo(-obs.width/2.4, obs.height/2.5);
+          ctx.lineTo(-obs.width/2.2, -obs.height/4);
+          ctx.closePath();
+          ctx.fill();
+          
+          ctx.fillStyle = 'rgba(255,255,255,0.3)';
+          ctx.beginPath();
+          ctx.arc(-2, -4, 3, 0, Math.PI*2);
+          ctx.fill();
+          
+          ctx.restore();
+        }
+      }
+
+      function drawUI() {
+        if (!gameActive) {
+          // 游戏未开始或结束时的提示已在overlay显示，但canvas上可加暗色
+          ctx.fillStyle = 'rgba(0,0,0,0.2)';
+          ctx.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+        }
+      }
+
+      function drawFrame() {
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        drawStars();
+        drawGround();
+        drawObstacles();
+        drawPlayer();
+        drawUI();
+      }
+
+      // ----- 游戏循环 -----
+      function gameLoop() {
+        update();
+        drawFrame();
+        requestAnimationFrame(gameLoop);
+      }
+
+      // ----- 事件绑定 (移动端触摸 + 鼠标) -----
+      function bindEvents() {
+        // 画布点击/触摸 跳跃
+        canvas.addEventListener('click', (e) => {
+          e.preventDefault();
+          performJump();
+        });
+        
+        canvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          performJump();
+        }, {passive: false});
+
+        // 防止触摸时页面缩放或滚动 (在canvas上)
+        canvas.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+        }, {passive: false});
+
+        canvas.addEventListener('touchend', (e) => {
+          e.preventDefault();
+        });
+
+        // 重启按钮
+        document.getElementById('restartButton').addEventListener('click', (e) => {
+          e.stopPropagation();
+          resetGame();
+        });
+        
+        document.getElementById('restartButton').addEventListener('touchstart', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          resetGame();
+        });
+      }
+
+      // 初始启动
+      function initialStart() {
+        resetGame();
+        // 让游戏一开始处于活跃状态，但也可以设计为待机；这里直接开始。
+        // 如果希望一开始等待点击，可设置gameActive = false 并显示提示。
+        // 这里采用活跃开始，玩家立即可以玩。
+        gameActive = true;
+        gameOverDiv.style.display = 'none';
+        bindEvents();
+        gameLoop();
+      }
+
+      initialStart();
+    })();
+  </script>
+</body>
+</html>
