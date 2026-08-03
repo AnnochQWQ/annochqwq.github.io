@@ -6,7 +6,7 @@ function renderContent(text) {
     var html = text;
     html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-    html = html.replace(/```([\s\S]*?)```/g, function(match, code) {
+    html = html.replace(/```\s*\n([\s\S]*?)\n\s*```/g, function(match, code) {
         var escaped = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
         return '<pre><code>' + escaped + '</code></pre>';
     });
