@@ -1,16 +1,14 @@
-fetch('/assets/header.html')
-    .then(res => res.text())
-    .then(html => {
-        document.getElementById('nav-placeholder').innerHTML = html;
-        var links = document.querySelectorAll('.nav a');
-        var current = window.location.pathname;
-        links.forEach(function(link) {
-            var href = link.getAttribute('href');
-            if (current.includes(href) && href !== '/') {
-                link.classList.add('active');
-            }
-            if (href === '/' && current === '/') {
-                link.classList.add('active');
-            }
-        });
+// 加载导航
+fetch('/nav.json')
+    .then(res => res.json())
+    .then(data => {
+        var nav = document.getElementById('nav-placeholder');
+        var html = '<nav class="nav">';
+        var currentPath = window.location.pathname;
+        for (var item of data) {
+            var isActive = currentPath.includes('/' + item.path + '/') ? ' class="active"' : '';
+            html += '<a href="/' + item.path + '/"' + isActive + '>' + item.title + '</a>';
+        }
+        html += '</nav>';
+        nav.innerHTML = html;
     });
