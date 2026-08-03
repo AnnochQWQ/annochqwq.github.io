@@ -15,10 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 扫描所有文件夹
+      - name: 生成 nav.json
         run: |
           echo '[' > nav.json
-          # 定义顺序
           order="doing essay playground about"
           for dir in $order; do
             if [ -f "$dir/index.html" ]; then
@@ -28,30 +27,36 @@ jobs:
           done
           sed -i '$ s/,$//' nav.json
           echo ']' >> nav.json
+          cat nav.json
 
-      - name: 扫描随笔列表
+      - name: 生成 index.json
         run: |
           echo '{"essay":[' > index.json
-          ls essay/*.txt 2>/dev/null | sed 's/essay\///' | sed 's/\.txt//' | while read name; do
+          find essay -maxdepth 1 -name "*.txt" -type f 2>/dev/null | sed 's/essay\///' | sed 's/\.txt//' | while read name; do
             echo "\"$name\"," >> index.json
           done
           sed -i '$ s/,$//' index.json
           echo '],"doing":[' >> index.json
-          ls doing/*.txt 2>/dev/null | sed 's/doing\///' | sed 's/\.txt//' | while read name; do
+          find doing -maxdepth 1 -name "*.txt" -type f 2>/dev/null | sed 's/doing\///' | sed 's/\.txt//' | while read name; do
             echo "\"$name\"," >> index.json
           done
           sed -i '$ s/,$//' index.json
           echo '],"playground":[' >> index.json
-          ls playground/*.html 2>/dev/null | sed 's/playground\///' | sed 's/\.html//' | grep -v index | while read name; do
+          find playground -maxdepth 1 -name "*.html" -type f 2>/dev/null | sed 's/playground\///' | sed 's/\.html//' | grep -v index | while read name; do
             echo "\"$name\"," >> index.json
           done
           sed -i '$ s/,$//' index.json
           echo ']}' >> index.json
+          cat index.json
 
-      - name: 提交 nav.json 和 index.json
+      - name: 提交文件
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add nav.json index.json
-          git diff --staged --quiet || git commit -m "更新导航和索引"
-          git push
+          if git diff --staged --quiet; then
+            echo "没有变化，跳过提交"
+          else
+            git commit -m "更新导航和索引"
+            git push
+          fi
