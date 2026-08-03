@@ -2,10 +2,6 @@ name: 生成导航
 
 on:
   push:
-    paths:
-      - '*/index.html'
-      - '**/*.txt'
-      - '**/*.html'
 
 jobs:
   build:
