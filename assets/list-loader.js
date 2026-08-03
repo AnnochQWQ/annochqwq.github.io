@@ -2,18 +2,46 @@ var REPO_OWNER = 'annochqwq';
 var REPO_NAME = 'annochqwq.github.io';
 var BRANCH = 'main';
 
+function escapeHtml(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function renderContent(text) {
     var html = text;
-    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+    // 1. 代码块 —— 最先处理，内部不再解析其他语法
     html = html.replace(/```\s*\n([\s\S]*?)\n\s*```/g, function(match, code) {
-        var escaped = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return '<pre><code>' + escaped + '</code></pre>';
+        return '<pre><code>' + escapeHtml(code) + '</code></pre>';
     });
-    html = html.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>');
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+    // 2. 图片
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, src) {
+        return '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(alt) + '">';
+    });
+
+    // 3. 链接
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, text, url) {
+        return '<a href="' + escapeHtml(url) + '" target="_blank">' + escapeHtml(text) + '</a>';
+    });
+
+    // 4. 粗体（先处理粗体，避免被斜体干扰）
+    html = html.replace(/\*\*([^*]+)\*\*/g, function(match, content) {
+        return '<strong>' + content + '</strong>';
+    });
+
+    // 5. 斜体
+    html = html.replace(/\*([^*]+)\*/g, function(match, content) {
+        return '<em>' + content + '</em>';
+    });
+
+    // 6. 引用（只匹配行首的 >，不匹配代码块里的）
+    html = html.replace(/^&gt;\s?(.*)$/gm, function(match, content) {
+        return '<blockquote>' + content + '</blockquote>';
+    });
+
+    // 7. 换行转 <br>
     html = html.replace(/\n/g, '<br>');
+
     return html;
 }
 
