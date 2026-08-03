@@ -7,6 +7,6 @@
 
 [链接文字](https://example.com)
 
-```
-代码块
+```javascript
+console.log('Hello, World!')
 ```
