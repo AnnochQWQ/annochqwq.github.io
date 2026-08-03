@@ -6,15 +6,18 @@
     <title>正在做的事...</title>
     <link rel="stylesheet" href="/assets/style.css">
     <script src="/assets/load.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
     <style>
-        .doing-list { list-style: none; padding: 0; }
-        .doing-list li { padding: 14px 0; border-bottom: 1px solid #eee; }
-        .doing-list a { color: #222; text-decoration: none; font-size: 18px; font-weight: 500; display: block; }
-        .doing-list a:hover { color: #1a73e8; }
-        .doing-list .file-icon { color: #999; font-size: 14px; font-weight: normal; margin-left: 10px; }
+        .list { list-style: none; padding: 0; }
+        .list li { padding: 14px 0; border-bottom: 1px solid #eee; }
+        .list a { color: #222; text-decoration: none; font-size: 18px; font-weight: 500; display: block; }
+        .list a:hover { color: #1a73e8; }
+        .list .file-icon { color: #999; font-size: 14px; font-weight: normal; margin-left: 10px; }
         .doing-content { max-width: 100%; overflow-wrap: break-word; }
         .doing-content img { max-width: 100%; height: auto; border-radius: 4px; margin: 16px 0; }
-        .doing-content pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 14px; }
+        .doing-content pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 14px; position: relative; }
+        .doing-content pre .copy-btn { position: absolute; top: 8px; right: 8px; background: #ddd; border: none; border-radius: 4px; padding: 4px 10px; font-size: 12px; cursor: pointer; opacity: 0.6; }
+        .doing-content pre .copy-btn:hover { opacity: 1; }
         .doing-content blockquote { border-left: 4px solid #ddd; padding-left: 20px; margin: 16px 0; color: #666; }
         .back-link { display: inline-block; margin-bottom: 20px; color: #1a73e8; text-decoration: none; }
         .back-link:hover { text-decoration: underline; }
@@ -30,64 +33,17 @@
         <div id="content"><div class="loading">加载中...</div></div>
         <div class="footer">&copy; 2026 Annoch (ᗜᴗᗜ)</div>
     </div>
+    <script src="/assets/list-loader.js"></script>
     <script>
-        var REPO_OWNER = 'annochqwq';
-        var REPO_NAME = 'annochqwq.github.io';
-        var BRANCH = 'main';
-        var DOING_PATH = 'doing';
-
-        function renderContent(text) {
-            var html = text;
-            html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
-            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-            html = html.replace(/```([\s\S]*?)```/g, function(match, code) {
-                return '<pre><code>' + code.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre>';
+        loadList('doing', 'doing');
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.doing-content pre code').forEach(function(block) {
+                hljs.highlightElement(block);
             });
-            html = html.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>');
-            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            html = html.replace(/\n/g, '<br>');
-            return html;
-        }
-
-        async function loadDoing() {
-            var c = document.getElementById('content');
-            var params = new URLSearchParams(window.location.search);
-            var item = params.get('item');
-
-            if (item) {
-                try {
-                    var res = await fetch('https://raw.githubusercontent.com/' + REPO_OWNER + '/' + REPO_NAME + '/' + BRANCH + '/' + DOING_PATH + '/' + item);
-                    if (!res.ok) throw new Error('');
-                    var text = await res.text();
-                    c.innerHTML = '<a href="/doing/" class="back-link">← 返回列表</a><div class="doing-content">' + renderContent(text) + '</div>';
-                } catch {
-                    c.innerHTML = '<a href="/doing/" class="back-link">← 返回列表</a><div class="error">加载失败 (ᗜᴗᗜ)</div>';
-                }
-                return;
-            }
-
-            try {
-                var res = await fetch('/index.json');
-                if (!res.ok) throw new Error('');
-                var data = await res.json();
-                var files = data.doing || [];
-                if (files.length === 0) {
-                    c.innerHTML = '<div class="empty">还没有记录 (ᗜᴗᗜ)</div>';
-                    return;
-                }
-                files.sort().reverse();
-                var html = '<ul class="doing-list">';
-                for (var name of files) {
-                    html += '<li><a href="?item=' + encodeURIComponent(name + '.txt') + '">' + name + ' <span class="file-icon">.txt</span></a></li>';
-                }
-                html += '</ul>';
-                c.innerHTML = html;
-            } catch {
-                c.innerHTML = '<div class="error">加载失败 (ᗜᴗᗜ)</div>';
-            }
-        }
-        loadDoing();
+        });
     </script>
 </body>
 </html>
