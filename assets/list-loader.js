@@ -8,7 +8,7 @@ function renderContent(text) {
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
     html = html.replace(/```([\s\S]*?)```/g, function(match, code) {
         var escaped = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return '<pre><code class="hljs">' + escaped + '</code><button class="copy-btn" onclick="copyCode(this)">复制</button></pre>';
+        return '<pre><code>' + escaped + '</code></pre>';
     });
     html = html.replace(/^&gt;\s?(.*)$/gm, '<blockquote>$1</blockquote>');
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
@@ -17,11 +17,22 @@ function renderContent(text) {
     return html;
 }
 
-function copyCode(btn) {
-    var code = btn.parentElement.querySelector('code').textContent;
-    navigator.clipboard.writeText(code).then(function() {
-        btn.textContent = '已复制';
-        setTimeout(function() { btn.textContent = '复制'; }, 1500);
+function addCopyButtons() {
+    var pres = document.querySelectorAll('.doing-content pre');
+    pres.forEach(function(pre) {
+        if (pre.querySelector('.copy-btn')) return;
+        var btn = document.createElement('button');
+        btn.textContent = '复制';
+        btn.className = 'copy-btn';
+        btn.onclick = function() {
+            var code = this.parentElement.querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(function() {
+                btn.textContent = '已复制';
+                setTimeout(function() { btn.textContent = '复制'; }, 1500);
+            });
+        };
+        pre.style.position = 'relative';
+        pre.appendChild(btn);
     });
 }
 
@@ -36,6 +47,7 @@ async function loadList(key, path) {
             if (!res.ok) throw new Error('');
             var text = await res.text();
             c.innerHTML = '<a href="/' + path + '/" class="back-link">← 返回列表</a><div class="doing-content">' + renderContent(text) + '</div>';
+            addCopyButtons();
         } catch {
             c.innerHTML = '<a href="/' + path + '/" class="back-link">← 返回列表</a><div class="error">加载失败 (ᗜᴗᗜ)</div>';
         }
