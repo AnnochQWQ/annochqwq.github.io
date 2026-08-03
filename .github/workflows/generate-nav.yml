@@ -18,9 +18,10 @@ jobs:
       - name: 扫描所有文件夹
         run: |
           echo '[' > nav.json
-          for dir in */; do
-            dir=${dir%/}
-            if [ -f "$dir/index.html" ] && [ "$dir" != "assets" ] && [ "$dir" != ".github" ]; then
+          # 定义顺序
+          order="doing essay playground about"
+          for dir in $order; do
+            if [ -f "$dir/index.html" ]; then
               title=$(grep -o '<title>[^<]*</title>' "$dir/index.html" | sed 's/<title>//' | sed 's/<\/title>//' | sed 's/ - Annoch//')
               echo "{\"path\":\"$dir\",\"title\":\"$title\"}," >> nav.json
             fi
