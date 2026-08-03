@@ -68,16 +68,18 @@
             }
 
             try {
-                var res = await fetch('https://api.github.com/repos/' + REPO_OWNER + '/' + REPO_NAME + '/contents/' + DOING_PATH + '?ref=' + BRANCH);
-                if (!res.ok) { c.innerHTML = '<div class="empty">还没有记录 (ᗜᴗᗜ)</div>'; return; }
+                var res = await fetch('/index.json');
+                if (!res.ok) throw new Error('');
                 var data = await res.json();
-                var files = data.filter(function(i) { return i.type === 'file' && i.name.endsWith('.txt') && i.name !== 'index.html'; });
-                if (files.length === 0) { c.innerHTML = '<div class="empty">还没有记录 (ᗜᴗᗜ)</div>'; return; }
-                files.sort(function(a, b) { return b.name.localeCompare(a.name); });
+                var files = data.doing || [];
+                if (files.length === 0) {
+                    c.innerHTML = '<div class="empty">还没有记录 (ᗜᴗᗜ)</div>';
+                    return;
+                }
+                files.sort().reverse();
                 var html = '<ul class="doing-list">';
-                for (var f of files) {
-                    var name = f.name.replace('.txt', '');
-                    html += '<li><a href="?item=' + encodeURIComponent(f.name) + '">' + name + ' <span class="file-icon">.txt</span></a></li>';
+                for (var name of files) {
+                    html += '<li><a href="?item=' + encodeURIComponent(name + '.txt') + '">' + name + ' <span class="file-icon">.txt</span></a></li>';
                 }
                 html += '</ul>';
                 c.innerHTML = html;

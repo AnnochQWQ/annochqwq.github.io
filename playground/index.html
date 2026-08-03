@@ -25,24 +25,21 @@
         <div class="footer">&copy; 2026 Annoch (ᗜᴗᗜ)</div>
     </div>
     <script>
-        var REPO_OWNER = 'annochqwq';
-        var REPO_NAME = 'annochqwq.github.io';
-        var BRANCH = 'main';
-        var TOOLS_PATH = 'playground';
-
         async function loadTools() {
             var c = document.getElementById('content');
             try {
-                var res = await fetch('https://api.github.com/repos/' + REPO_OWNER + '/' + REPO_NAME + '/contents/' + TOOLS_PATH + '?ref=' + BRANCH);
-                if (!res.ok) { c.innerHTML = '<div class="empty">还没有小玩意 (ᗜᴗᗜ)</div>'; return; }
+                var res = await fetch('/index.json');
+                if (!res.ok) throw new Error('');
                 var data = await res.json();
-                var files = data.filter(function(i) { return i.type === 'file' && i.name.endsWith('.html') && i.name !== 'index.html'; });
-                if (files.length === 0) { c.innerHTML = '<div class="empty">还没有小玩意 (ᗜᴗᗜ)</div>'; return; }
-                files.sort(function(a, b) { return a.name.localeCompare(b.name); });
+                var files = data.playground || [];
+                if (files.length === 0) {
+                    c.innerHTML = '<div class="empty">还没有小玩意 (ᗜᴗᗜ)</div>';
+                    return;
+                }
+                files.sort();
                 var html = '<ul class="tool-list">';
-                for (var f of files) {
-                    var name = f.name.replace('.html', '');
-                    html += '<li><a href="' + f.name + '">' + name + ' <span class="file-icon">.html</span></a></li>';
+                for (var name of files) {
+                    html += '<li><a href="' + name + '.html">' + name + ' <span class="file-icon">.html</span></a></li>';
                 }
                 html += '</ul>';
                 c.innerHTML = html;
