@@ -4,9 +4,11 @@ export async function onRequest(context) {
     if (!path) {
         return new Response('缺少路径参数', { status: 400 });
     }
+    const token = context.env.GITHUB_TOKEN;
     const apiUrl = `https://api.github.com/repos/annochqwq/annochqwq.github.io/contents/${path}`;
     const res = await fetch(apiUrl, {
         headers: {
+            'Authorization': `token ${token}`,
             'Accept': 'application/vnd.github.v3.raw',
             'User-Agent': 'Cloudflare-Pages'
         }
