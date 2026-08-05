@@ -5,6 +5,10 @@ export async function onRequest(context) {
         return new Response('缺少路径参数', { status: 400 });
     }
     const token = context.env.GITHUB_TOKEN;
+    // 调试：检查 token 是否存在
+    if (!token) {
+        return new Response('Token 未设置', { status: 500 });
+    }
     const apiUrl = `https://api.github.com/repos/annochqwq/annochqwq.github.io/contents/${path}`;
     const res = await fetch(apiUrl, {
         headers: {
