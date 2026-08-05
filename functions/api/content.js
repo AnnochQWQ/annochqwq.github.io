@@ -7,7 +7,8 @@ export async function onRequest(context) {
     const apiUrl = `https://api.github.com/repos/annochqwq/annochqwq.github.io/contents/${path}`;
     const res = await fetch(apiUrl, {
         headers: {
-            'Accept': 'application/vnd.github.v3.raw'
+            'Accept': 'application/vnd.github.v3.raw',
+            'User-Agent': 'Cloudflare-Pages'
         }
     });
     if (!res.ok) {
