@@ -9,7 +9,7 @@ function escapeHtml(text) {
 function renderContent(text) {
     var html = text;
 
-    // 1. 代码块 —— 最先处理，内部不再解析其他语法
+    // 1. 代码块
     html = html.replace(/```\s*\n([\s\S]*?)\n\s*```/g, function(match, code) {
         return '<pre><code>' + escapeHtml(code) + '</code></pre>';
     });
@@ -76,7 +76,7 @@ async function loadList(key, path) {
             c.innerHTML = '<div class="empty">还没有内容 (ᗜᴗᗜ)</div>';
             return;
         }
-        files.sort().reverse();
+        // 直接使用 generate.js 生成的顺序，不重新排序
         var html = '<ul class="list">';
         for (var name of files) {
             html += '<li><a href="?item=' + encodeURIComponent(name + '.txt') + '">' + name + ' <span class="file-icon">.txt</span></a></li>';
