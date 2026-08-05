@@ -1,33 +1,46 @@
 const fs = require('fs');
 const path = require('path');
 
-const folders = ['doing', 'essay', 'playground', 'about'];
+const excludeDirs = ['assets', '.github', 'functions', 'node_modules'];
+const order = ['doing', 'essay', 'playground', 'message', 'about'];
 const nav = [];
 const index = { essay: [], doing: [], playground: [] };
 
+const items = fs.readdirSync(process.cwd(), { withFileTypes: true });
+const folders = items
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name)
+    .filter(name => !excludeDirs.includes(name))
+    .sort((a, b) => {
+        const indexA = order.indexOf(a);
+        const indexB = order.indexOf(b);
+        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+    });
+
 for (const folder of folders) {
     const folderPath = path.join(process.cwd(), folder);
-    if (fs.existsSync(folderPath)) {
-        const indexPath = path.join(folderPath, 'index.html');
-        if (fs.existsSync(indexPath)) {
-            const html = fs.readFileSync(indexPath, 'utf-8');
-            const match = html.match(/<title>([^<]*)<\/title>/);
-            const title = match ? match[1] : folder;
-            nav.push({ path: folder, title: title });
+    const indexPath = path.join(folderPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        const html = fs.readFileSync(indexPath, 'utf-8');
+        const match = html.match(/<title>([^<]*)<\/title>/);
+        const title = match ? match[1] : folder;
+        nav.push({ path: folder, title: title });
+    }
+    if (folder !== 'about' && folder !== 'playground') {
+        const files = fs.readdirSync(folderPath);
+        const txtFiles = files.filter(f => f.endsWith('.txt')).map(f => f.replace('.txt', ''));
+        if (txtFiles.length > 0) {
+            index[folder] = txtFiles;
         }
-        if (folder !== 'about' && folder !== 'playground') {
-            const files = fs.readdirSync(folderPath);
-            const txtFiles = files.filter(f => f.endsWith('.txt')).map(f => f.replace('.txt', ''));
-            if (txtFiles.length > 0) {
-                index[folder] = txtFiles;
-            }
-        }
-        if (folder === 'playground') {
-            const files = fs.readdirSync(folderPath);
-            const htmlFiles = files.filter(f => f.endsWith('.html') && f !== 'index.html').map(f => f.replace('.html', ''));
-            if (htmlFiles.length > 0) {
-                index.playground = htmlFiles;
-            }
+    }
+    if (folder === 'playground') {
+        const files = fs.readdirSync(folderPath);
+        const htmlFiles = files.filter(f => f.endsWith('.html') && f !== 'index.html').map(f => f.replace('.html', ''));
+        if (htmlFiles.length > 0) {
+            index.playground = htmlFiles;
         }
     }
 }

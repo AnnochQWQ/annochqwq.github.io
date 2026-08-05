@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>留言板</title>
+    <link rel="stylesheet" href="/assets/style.css">
+    <script src="/assets/load.js" defer></script>
+    <style>
+        .message-form {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #f7f7f7;
+            border-radius: 4px;
+        }
+        .message-form input, .message-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .message-form textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .message-form button {
+            padding: 10px 24px;
+            background: #1a73e8;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .message-form button:hover {
+            background: #1557b0;
+        }
+        .message-list {
+            list-style: none;
+            padding: 0;
+        }
+        .message-list li {
+            padding: 14px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .message-list .meta {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .message-list .meta .nickname {
+            font-weight: 600;
+            color: #222;
+        }
+        .message-list .content {
+            font-size: 16px;
+            color: #333;
+        }
+        .loading, .empty, .error {
+            padding: 32px 0;
+            text-align: center;
+            color: #888;
+        }
+        .error { color: #c0392b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="site-title"><a href="/">Annoch (ᗜᴗᗜ)</a></div>
+        <div class="site-desc"></div>
+        <div id="nav-placeholder"></div>
+
+        <h1 style="margin-bottom:20px;">留言板</h1>
+
+        <div class="message-form">
+            <input type="text" id="nickname" placeholder="昵称" maxlength="20">
+            <textarea id="content" placeholder="说点什么..." maxlength="500"></textarea>
+            <button id="submitBtn">提交留言</button>
+            <span id="status" style="margin-left:12px;font-size:14px;color:#888;"></span>
+        </div>
+
+        <div id="messageList"><div class="loading">加载中...</div></div>
+
+        <div class="footer">&copy; 2026 Annoch (ᗜᴗᗜ)</div>
+    </div>
+
+    <script>
+        async function loadMessages() {
+            const container = document.getElementById('messageList');
+            try {
+                const res = await fetch('/api/message');
+                if (!res.ok) throw new Error('');
+                const data = await res.json();
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="empty">还没有留言，来写第一条吧</div>';
+                    return;
+                }
+                let html = '<ul class="message-list">';
+                for (const msg of data) {
+                    const time = new Date(msg.created_at).toLocaleString('zh-CN');
+                    html += `
+                        <li>
+                            <div class="meta"><span class="nickname">${escapeHtml(msg.nickname)}</span> · ${time}</div>
+                            <div class="content">${escapeHtml(msg.content)}</div>
+                        </li>
+                    `;
+                }
+                html += '</ul>';
+                container.innerHTML = html;
+            } catch {
+                container.innerHTML = '<div class="error">加载失败，请刷新重试</div>';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function submitMessage() {
+            const nickname = document.getElementById('nickname');
+            const content = document.getElementById('content');
+            const status = document.getElementById('status');
+            const btn = document.getElementById('submitBtn');
+
+            if (!nickname.value.trim()) {
+                status.textContent = '请输入昵称';
+                return;
+            }
+            if (!content.value.trim()) {
+                status.textContent = '请输入内容';
+                return;
+            }
+
+            btn.disabled = true;
+            status.textContent = '提交中...';
+
+            try {
+                const res = await fetch('/api/message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nickname: nickname.value.trim(),
+                        content: content.value.trim()
+                    })
+                });
+                if (!res.ok) throw new Error('');
+                status.textContent = '提交成功！';
+                nickname.value = '';
+                content.value = '';
+                loadMessages();
+            } catch {
+                status.textContent = '提交失败，请重试';
+            }
+            btn.disabled = false;
+        }
+
+        document.getElementById('submitBtn').addEventListener('click', submitMessage);
+
+        document.getElementById('content').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                submitMessage();
+            }
+        });
+
+        loadMessages();
+    </script>
+</body>
+</html>
