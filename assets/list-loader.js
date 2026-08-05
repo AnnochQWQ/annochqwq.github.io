@@ -1,6 +1,4 @@
-var REPO_OWNER = 'annochqwq';
-var REPO_NAME = 'annochqwq.github.io';
-var BRANCH = 'main';
+// 仓库信息已移至 Cloudflare Functions 环境变量
 
 function escapeHtml(text) {
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -57,12 +55,12 @@ async function loadList(key, path) {
 
     if (item) {
         try {
-            var res = await fetch('https://raw.githubusercontent.com/' + REPO_OWNER + '/' + REPO_NAME + '/' + BRANCH + '/' + path + '/' + item);
+            var res = await fetch('/api/content?path=' + path + '/' + item);
             if (!res.ok) throw new Error('');
             var text = await res.text();
             c.innerHTML = '<a href="/' + path + '/" class="back-link">← 返回列表</a><div class="doing-content">' + renderContent(text) + '</div>';
         } catch {
-            c.innerHTML = '<a href="/' + path + '/" class="back-link">← 返回列表</a><div class="error">加载失败 (ᗜᴗᗜ)</div>';
+            c.innerHTML = '<a href="/' + path + '/" class="back-link">← 返回列表</a><div class="error">加载失败</div>';
         }
         return;
     }
@@ -73,10 +71,9 @@ async function loadList(key, path) {
         var data = await res.json();
         var files = data[key];
         if (!files || !Array.isArray(files) || files.length === 0) {
-            c.innerHTML = '<div class="empty">还没有内容 (ᗜᴗᗜ)</div>';
+            c.innerHTML = '<div class="empty">还没有内容</div>';
             return;
         }
-        // 直接使用 generate.js 生成的顺序，不重新排序
         var html = '<ul class="list">';
         for (var name of files) {
             html += '<li><a href="?item=' + encodeURIComponent(name + '.txt') + '">' + name + ' <span class="file-icon">.txt</span></a></li>';
@@ -84,6 +81,6 @@ async function loadList(key, path) {
         html += '</ul>';
         c.innerHTML = html;
     } catch {
-        c.innerHTML = '<div class="error">加载失败 (ᗜᴗᗜ)</div>';
+        c.innerHTML = '<div class="error">加载失败</div>';
     }
 }
