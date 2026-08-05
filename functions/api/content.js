@@ -5,22 +5,9 @@ export async function onRequest(context) {
         return new Response('缺少路径参数', { status: 400 });
     }
     const token = context.env.GITHUB_TOKEN;
-    if (!token) {
-        return new Response('Token 未设置', { status: 500 });
-    }
-    const apiUrl = `https://api.github.com/repos/annochqwq/annochqwq.github.io/contents/${path}`;
-    const res = await fetch(apiUrl, {
-        headers: {
-            'Authorization': `token ${token}`,
-            'Accept': 'application/vnd.github.v3.raw',
-            'User-Agent': 'Cloudflare-Pages'
-        }
-    });
-    if (!res.ok) {
-        return new Response('GitHub API 返回 ' + res.status, { status: 404 });
-    }
-    const text = await res.text();
-    return new Response(text, {
+    const apiUrl = `https://api.github.com/repos/AnnochQWQ/annochqwq.github.io/contents/${path}`;
+    // 返回请求的 URL 用于调试
+    return new Response('请求的 URL: ' + apiUrl, {
         headers: { 'Content-Type': 'text/plain; charset=utf-8' }
     });
 }
