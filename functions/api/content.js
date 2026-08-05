@@ -6,8 +6,18 @@ export async function onRequest(context) {
     }
     const token = context.env.GITHUB_TOKEN;
     const apiUrl = `https://api.github.com/repos/AnnochQWQ/annochqwq.github.io/contents/${path}`;
-    // 返回请求的 URL 用于调试
-    return new Response('请求的 URL: ' + apiUrl, {
+    const res = await fetch(apiUrl, {
+        headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3.raw',
+            'User-Agent': 'Cloudflare-Pages'
+        }
+    });
+    if (!res.ok) {
+        return new Response('GitHub API 错误: ' + res.status, { status: 404 });
+    }
+    const text = await res.text();
+    return new Response(text, {
         headers: { 'Content-Type': 'text/plain; charset=utf-8' }
     });
 }
