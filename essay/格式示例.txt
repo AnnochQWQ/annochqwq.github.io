@@ -10,3 +10,5 @@
 ```
 console.log('Hello, World!')
 ```
+
+~~这段文字被杠掉了~~

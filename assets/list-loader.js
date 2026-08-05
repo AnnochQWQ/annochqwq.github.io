@@ -24,7 +24,7 @@ function renderContent(text) {
         return '<a href="' + escapeHtml(url) + '" target="_blank">' + escapeHtml(text) + '</a>';
     });
 
-    // 4. 粗体（先处理粗体，避免被斜体干扰）
+    // 4. 粗体
     html = html.replace(/\*\*([^*]+)\*\*/g, function(match, content) {
         return '<strong>' + content + '</strong>';
     });
@@ -34,12 +34,17 @@ function renderContent(text) {
         return '<em>' + content + '</em>';
     });
 
-    // 6. 引用（只匹配行首的 >，不匹配代码块里的）
+    // 6. 删除线
+    html = html.replace(/~~([^~]+)~~/g, function(match, content) {
+        return '<del>' + content + '</del>';
+    });
+
+    // 7. 引用
     html = html.replace(/^&gt;\s?(.*)$/gm, function(match, content) {
         return '<blockquote>' + content + '</blockquote>';
     });
 
-    // 7. 换行转 <br>
+    // 8. 换行转 <br>
     html = html.replace(/\n/g, '<br>');
 
     return html;
