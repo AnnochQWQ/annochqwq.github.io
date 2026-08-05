@@ -1,0 +1,33 @@
+首先，你需要先去[github](https://github.com)注册账号，新建一个仓库，要用自己的 **你的用户名**+.github.io，这是你用来存放网站文件的地方。你可以新建一个文件，命名为index.html，最为你的网站首页，以下是示例
+```
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello World！</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Hello World！</h1>
+</body>
+</html>
+```
+然后，打开你仓库的设置，找到Pages，确保，Source设置是Deploy from a branch，而不是GitHub Actions，并且Branch的设置是main /root
+这时，你应该可以访问**你的用户名.github.io**了
+
+如果你需要有一定后端能力，那么可以使用Cloudflare Pages。使用先前的github登陆，打开左侧边栏的**Workers 和 Pages**，进入后点击**创建应用程序**，再点击想要部署 Pages？开始使用，连接你的github，选择你的网页仓库，按照你的提示部署，然后你应该可以打开Cloudflare Pages搭建的页面了
+~~至于后端能力，你去问AI罢~~
