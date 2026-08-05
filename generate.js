@@ -31,14 +31,36 @@ for (const folder of folders) {
     }
     if (folder !== 'about' && folder !== 'playground') {
         const files = fs.readdirSync(folderPath);
-        const txtFiles = files.filter(f => f.endsWith('.txt')).map(f => f.replace('.txt', ''));
+        const txtFiles = files
+            .filter(f => f.endsWith('.txt'))
+            .map(f => {
+                const filePath = path.join(folderPath, f);
+                const stats = fs.statSync(filePath);
+                return {
+                    name: f.replace('.txt', ''),
+                    mtime: stats.mtimeMs
+                };
+            })
+            .sort((a, b) => b.mtime - a.mtime)
+            .map(item => item.name);
         if (txtFiles.length > 0) {
             index[folder] = txtFiles;
         }
     }
     if (folder === 'playground') {
         const files = fs.readdirSync(folderPath);
-        const htmlFiles = files.filter(f => f.endsWith('.html') && f !== 'index.html').map(f => f.replace('.html', ''));
+        const htmlFiles = files
+            .filter(f => f.endsWith('.html') && f !== 'index.html')
+            .map(f => {
+                const filePath = path.join(folderPath, f);
+                const stats = fs.statSync(filePath);
+                return {
+                    name: f.replace('.html', ''),
+                    mtime: stats.mtimeMs
+                };
+            })
+            .sort((a, b) => b.mtime - a.mtime)
+            .map(item => item.name);
         if (htmlFiles.length > 0) {
             index.playground = htmlFiles;
         }
