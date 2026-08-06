@@ -43,7 +43,6 @@ async function loadList(key, path) {
             var text = await res.text();
 
             var html = '<a href="/' + path + '/" class="back-link">← 返回列表</a>';
-            // 从文件名提取标题（去掉 .txt）
             var title = item.replace('.txt', '');
             html += '<h1 style="margin-bottom:16px;">' + escapeHtml(title) + '</h1>';
             html += '<div class="doing-content">' + renderContent(text) + '</div>';

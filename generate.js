@@ -31,12 +31,23 @@ for (const folder of folders) {
     }
     if (folder !== 'about' && folder !== 'playground') {
         const files = fs.readdirSync(folderPath);
-        console.log('扫描文件夹:', folder, '文件列表:', files);
         const txtFiles = files
             .filter(f => f.endsWith('.txt'))
-            .map(f => f.replace('.txt', ''))
-            .sort()
-            .reverse();
+            .map(f => {
+                const filePath = path.join(folderPath, f);
+                const stats = fs.statSync(filePath);
+                const mtime = stats.mtime;
+                return {
+                    name: f.replace('.txt', ''),
+                    nameWithExt: f,
+                    mtime: mtime.toISOString()
+                };
+            })
+            .sort((a, b) => {
+                if (a.name === '格式示例') return 1;
+                if (b.name === '格式示例') return -1;
+                return new Date(b.mtime) - new Date(a.mtime);
+            });
         if (txtFiles.length > 0) {
             index[folder] = txtFiles;
         }
@@ -56,4 +67,3 @@ for (const folder of folders) {
 fs.writeFileSync('nav.json', JSON.stringify(nav, null, 2));
 fs.writeFileSync('index.json', JSON.stringify(index, null, 2));
 console.log('nav.json and index.json generated');
-console.log('index.json 内容:', JSON.stringify(index, null, 2));
