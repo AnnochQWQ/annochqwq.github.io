@@ -16,14 +16,19 @@ jobs:
       - name: 生成 nav.json
         run: |
           echo '[' > nav.json
-          order="doing essay playground about"
-          for dir in $order; do
-            if [ -f "$dir/index.html" ]; then
+          nav_items=""
+          for dir in */; do
+            dir=${dir%/}
+            if [ -f "$dir/index.html" ] && [ "$dir" != "assets" ] && [ "$dir" != ".github" ] && [ "$dir" != "about" ]; then
               title=$(grep -o '<title>[^<]*</title>' "$dir/index.html" | sed 's/<title>//' | sed 's/<\/title>//' | sed 's/ - Annoch//')
-              echo "{\"path\":\"$dir\",\"title\":\"$title\"}," >> nav.json
+              nav_items="$nav_items{\"path\":\"$dir\",\"title\":\"$title\"},"
             fi
           done
-          sed -i '$ s/,$//' nav.json
+          if [ -f "about/index.html" ]; then
+            title=$(grep -o '<title>[^<]*</title>' "about/index.html" | sed 's/<title>//' | sed 's/<\/title>//' | sed 's/ - Annoch//')
+            nav_items="$nav_items{\"path\":\"about\",\"title\":\"$title\"},"
+          fi
+          echo "$nav_items" | sed 's/,$//' >> nav.json
           echo ']' >> nav.json
           cat nav.json
 
