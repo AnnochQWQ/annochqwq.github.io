@@ -18,11 +18,11 @@
 </head>
 <body>
     <div class="container">
-        <div class="site-title"><a href="/">Annoch (ᗜᴗᗜ)</a></div>
+        <div class="site-title"><a href="/">游戏繁殖基地</a></div>
         <div class="site-desc"></div>
         <div id="nav-placeholder"></div>
         <div id="content"><div class="loading">加载中...</div></div>
-        <div class="footer">&copy; 2026 Annoch (ᗜᴗᗜ)</div>
+        <div class="footer">&copy; 2026 游戏繁殖基地</div>
     </div>
     <script>
         async function loadTools() {
@@ -33,7 +33,7 @@
                 var data = await res.json();
                 var files = data.playground || [];
                 if (files.length === 0) {
-                    c.innerHTML = '<div class="empty">还没有小玩意 (ᗜᴗᗜ)</div>';
+                    c.innerHTML = '<div class="empty">还没有小玩意</div>';
                     return;
                 }
                 files.sort();
@@ -44,7 +44,7 @@
                 html += '</ul>';
                 c.innerHTML = html;
             } catch {
-                c.innerHTML = '<div class="error">加载失败 (ᗜᴗᗜ)</div>';
+                c.innerHTML = '<div class="error">加载失败</div>';
             }
         }
         loadTools();
