@@ -31,11 +31,6 @@ function renderContent(text) {
     return html;
 }
 
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    return dateStr;
-}
-
 async function loadList(key, path) {
     var c = document.getElementById('content');
     var params = new URLSearchParams(window.location.search);
@@ -43,28 +38,14 @@ async function loadList(key, path) {
 
     if (item) {
         try {
-            var metaRes = await fetch('/index.json');
-            var metaData = await metaRes.json();
-            var fileMeta = null;
-            if (metaData[key]) {
-                for (var f of metaData[key]) {
-                    if (f.nameWithExt === item) {
-                        fileMeta = f;
-                        break;
-                    }
-                }
-            }
-
             var res = await fetch('/api/content?path=' + path + '/' + item);
             if (!res.ok) throw new Error('');
             var text = await res.text();
 
             var html = '<a href="/' + path + '/" class="back-link">← 返回列表</a>';
-            var title = fileMeta ? fileMeta.name : item.replace('.txt', '');
-            html += '<h1 style="margin-bottom:6px;">' + escapeHtml(title) + '</h1>';
-            if (fileMeta && fileMeta.date) {
-                html += '<div style="font-size:14px;color:#999;margin-bottom:20px;">' + fileMeta.date + '</div>';
-            }
+            // 从文件名提取标题（去掉 .txt）
+            var title = item.replace('.txt', '');
+            html += '<h1 style="margin-bottom:16px;">' + escapeHtml(title) + '</h1>';
             html += '<div class="doing-content">' + renderContent(text) + '</div>';
             c.innerHTML = html;
         } catch {
@@ -85,10 +66,7 @@ async function loadList(key, path) {
         var html = '<ul class="list">';
         for (var f of files) {
             var name = f.name || f;
-            var date = f.date || '';
-            var displayName = name;
-            var timeStr = date ? ' <span style="font-size:14px;color:#999;font-weight:normal;">' + date + '</span>' : '';
-            html += '<li><a href="?item=' + encodeURIComponent(f.nameWithExt || name + '.txt') + '">' + escapeHtml(displayName) + timeStr + ' <span class="file-icon">.txt</span></a></li>';
+            html += '<li><a href="?item=' + encodeURIComponent(f.nameWithExt || name + '.txt') + '">' + escapeHtml(name) + ' <span class="file-icon">.txt</span></a></li>';
         }
         html += '</ul>';
         c.innerHTML = html;

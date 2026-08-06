@@ -6,15 +6,6 @@ const order = ['doing', 'essay', 'playground', 'message', 'about'];
 const nav = [];
 const index = { essay: [], doing: [], playground: [] };
 
-function parseDateFromFilename(filename) {
-    const match = filename.match(/^(\d{4}-\d{2}-\d{2})-/);
-    return match ? match[1] : null;
-}
-
-function getDisplayName(filename) {
-    return filename.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace('.txt', '');
-}
-
 const items = fs.readdirSync(process.cwd(), { withFileTypes: true });
 const folders = items
     .filter(dirent => dirent.isDirectory())
@@ -42,22 +33,9 @@ for (const folder of folders) {
         const files = fs.readdirSync(folderPath);
         const txtFiles = files
             .filter(f => f.endsWith('.txt'))
-            .map(f => {
-                const date = parseDateFromFilename(f);
-                const name = getDisplayName(f);
-                return {
-                    name: name,
-                    nameWithExt: f,
-                    date: date,
-                    sortKey: date || f
-                };
-            })
-            .sort((a, b) => {
-                if (a.date && b.date) return b.date.localeCompare(a.date);
-                if (a.date) return -1;
-                if (b.date) return 1;
-                return b.sortKey.localeCompare(a.sortKey);
-            });
+            .map(f => f.replace('.txt', ''))
+            .sort()
+            .reverse();
         if (txtFiles.length > 0) {
             index[folder] = txtFiles;
         }
