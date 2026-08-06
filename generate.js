@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const excludeDirs = ['assets', '.github', 'functions', 'node_modules'];
-const order = ['doing', 'essay', 'playground', 'message', 'about'];
+const order = ['doing', 'essay', 'playground', 'about'];
 const nav = [];
 const index = { essay: [], doing: [], playground: [] };
 
@@ -44,8 +44,6 @@ for (const folder of folders) {
                 };
             })
             .sort((a, b) => {
-                if (a.name === '格式示例') return 1;
-                if (b.name === '格式示例') return -1;
                 return new Date(b.mtime) - new Date(a.mtime);
             });
         if (txtFiles.length > 0) {
