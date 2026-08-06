@@ -31,16 +31,9 @@ function renderContent(text) {
     return html;
 }
 
-function formatTime(isoString) {
-    if (!isoString) return '';
-    var d = new Date(isoString);
-    return d.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    return dateStr;
 }
 
 async function loadList(key, path) {
@@ -50,7 +43,6 @@ async function loadList(key, path) {
 
     if (item) {
         try {
-            // 先获取文件信息（包含时间）
             var metaRes = await fetch('/index.json');
             var metaData = await metaRes.json();
             var fileMeta = null;
@@ -63,17 +55,15 @@ async function loadList(key, path) {
                 }
             }
 
-            // 获取文章内容
             var res = await fetch('/api/content?path=' + path + '/' + item);
             if (!res.ok) throw new Error('');
             var text = await res.text();
 
             var html = '<a href="/' + path + '/" class="back-link">← 返回列表</a>';
-            // 显示标题（从文件名提取）
             var title = fileMeta ? fileMeta.name : item.replace('.txt', '');
             html += '<h1 style="margin-bottom:6px;">' + escapeHtml(title) + '</h1>';
-            if (fileMeta && fileMeta.mtime) {
-                html += '<div style="font-size:14px;color:#999;margin-bottom:20px;">更新于 ' + formatTime(fileMeta.mtime) + '</div>';
+            if (fileMeta && fileMeta.date) {
+                html += '<div style="font-size:14px;color:#999;margin-bottom:20px;">' + fileMeta.date + '</div>';
             }
             html += '<div class="doing-content">' + renderContent(text) + '</div>';
             c.innerHTML = html;
@@ -94,10 +84,10 @@ async function loadList(key, path) {
         }
         var html = '<ul class="list">';
         for (var f of files) {
-            var name = f.name || f; // 兼容旧格式
-            var mtime = f.mtime || '';
+            var name = f.name || f;
+            var date = f.date || '';
             var displayName = name;
-            var timeStr = mtime ? ' <span style="font-size:14px;color:#999;font-weight:normal;">' + formatTime(mtime) + '</span>' : '';
+            var timeStr = date ? ' <span style="font-size:14px;color:#999;font-weight:normal;">' + date + '</span>' : '';
             html += '<li><a href="?item=' + encodeURIComponent(f.nameWithExt || name + '.txt') + '">' + escapeHtml(displayName) + timeStr + ' <span class="file-icon">.txt</span></a></li>';
         }
         html += '</ul>';

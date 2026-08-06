@@ -6,6 +6,15 @@ const order = ['doing', 'essay', 'playground', 'message', 'about'];
 const nav = [];
 const index = { essay: [], doing: [], playground: [] };
 
+function parseDateFromFilename(filename) {
+    const match = filename.match(/^(\d{4}-\d{2}-\d{2})-/);
+    return match ? match[1] : null;
+}
+
+function getDisplayName(filename) {
+    return filename.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace('.txt', '');
+}
+
 const items = fs.readdirSync(process.cwd(), { withFileTypes: true });
 const folders = items
     .filter(dirent => dirent.isDirectory())
@@ -34,16 +43,21 @@ for (const folder of folders) {
         const txtFiles = files
             .filter(f => f.endsWith('.txt'))
             .map(f => {
-                const filePath = path.join(folderPath, f);
-                const stats = fs.statSync(filePath);
-                const mtime = stats.mtime; // 保留完整时间对象
+                const date = parseDateFromFilename(f);
+                const name = getDisplayName(f);
                 return {
-                    name: f.replace('.txt', ''),
+                    name: name,
                     nameWithExt: f,
-                    mtime: mtime.toISOString() // 转为 ISO 格式字符串
+                    date: date,
+                    sortKey: date || f
                 };
             })
-            .sort((a, b) => new Date(b.mtime) - new Date(a.mtime));
+            .sort((a, b) => {
+                if (a.date && b.date) return b.date.localeCompare(a.date);
+                if (a.date) return -1;
+                if (b.date) return 1;
+                return b.sortKey.localeCompare(a.sortKey);
+            });
         if (txtFiles.length > 0) {
             index[folder] = txtFiles;
         }
@@ -52,17 +66,8 @@ for (const folder of folders) {
         const files = fs.readdirSync(folderPath);
         const htmlFiles = files
             .filter(f => f.endsWith('.html') && f !== 'index.html')
-            .map(f => {
-                const filePath = path.join(folderPath, f);
-                const stats = fs.statSync(filePath);
-                return {
-                    name: f.replace('.html', ''),
-                    nameWithExt: f,
-                    mtime: stats.mtime.toISOString()
-                };
-            })
-            .sort((a, b) => new Date(b.mtime) - new Date(a.mtime))
-            .map(item => item.name);
+            .map(f => f.replace('.html', ''))
+            .sort();
         if (htmlFiles.length > 0) {
             index.playground = htmlFiles;
         }
