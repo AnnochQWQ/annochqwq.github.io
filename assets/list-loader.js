@@ -6,46 +6,41 @@ function escapeHtml(text) {
 
 function renderContent(text) {
     var html = text;
-
-    // 1. 代码块
     html = html.replace(/```\s*\n([\s\S]*?)\n\s*```/g, function(match, code) {
         return '<pre><code>' + escapeHtml(code) + '</code></pre>';
     });
-
-    // 2. 图片
     html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, src) {
         return '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(alt) + '">';
     });
-
-    // 3. 链接
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, text, url) {
         return '<a href="' + escapeHtml(url) + '" target="_blank">' + escapeHtml(text) + '</a>';
     });
-
-    // 4. 粗体
     html = html.replace(/\*\*([^*]+)\*\*/g, function(match, content) {
         return '<strong>' + content + '</strong>';
     });
-
-    // 5. 斜体
     html = html.replace(/\*([^*]+)\*/g, function(match, content) {
         return '<em>' + content + '</em>';
     });
-
-    // 6. 删除线
     html = html.replace(/~~([^~]+)~~/g, function(match, content) {
         return '<del>' + content + '</del>';
     });
-
-    // 7. 引用
     html = html.replace(/^&gt;\s?(.*)$/gm, function(match, content) {
         return '<blockquote>' + content + '</blockquote>';
     });
-
-    // 8. 换行转 <br>
     html = html.replace(/\n/g, '<br>');
-
     return html;
+}
+
+function formatTime(isoString) {
+    if (!isoString) return '';
+    var d = new Date(isoString);
+    return d.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
 async function loadList(key, path) {
@@ -55,10 +50,33 @@ async function loadList(key, path) {
 
     if (item) {
         try {
+            // 先获取文件信息（包含时间）
+            var metaRes = await fetch('/index.json');
+            var metaData = await metaRes.json();
+            var fileMeta = null;
+            if (metaData[key]) {
+                for (var f of metaData[key]) {
+                    if (f.nameWithExt === item) {
+                        fileMeta = f;
+                        break;
+                    }
+                }
+            }
+
+            // 获取文章内容
             var res = await fetch('/api/content?path=' + path + '/' + item);
             if (!res.ok) throw new Error('');
             var text = await res.text();
-            c.innerHTML = '<a href="/' + path + '/" class="back-link">← 返回列表</a><div class="doing-content">' + renderContent(text) + '</div>';
+
+            var html = '<a href="/' + path + '/" class="back-link">← 返回列表</a>';
+            // 显示标题（从文件名提取）
+            var title = fileMeta ? fileMeta.name : item.replace('.txt', '');
+            html += '<h1 style="margin-bottom:6px;">' + escapeHtml(title) + '</h1>';
+            if (fileMeta && fileMeta.mtime) {
+                html += '<div style="font-size:14px;color:#999;margin-bottom:20px;">更新于 ' + formatTime(fileMeta.mtime) + '</div>';
+            }
+            html += '<div class="doing-content">' + renderContent(text) + '</div>';
+            c.innerHTML = html;
         } catch {
             c.innerHTML = '<a href="/' + path + '/" class="back-link">← 返回列表</a><div class="error">加载失败</div>';
         }
@@ -75,8 +93,12 @@ async function loadList(key, path) {
             return;
         }
         var html = '<ul class="list">';
-        for (var name of files) {
-            html += '<li><a href="?item=' + encodeURIComponent(name + '.txt') + '">' + name + ' <span class="file-icon">.txt</span></a></li>';
+        for (var f of files) {
+            var name = f.name || f; // 兼容旧格式
+            var mtime = f.mtime || '';
+            var displayName = name;
+            var timeStr = mtime ? ' <span style="font-size:14px;color:#999;font-weight:normal;">' + formatTime(mtime) + '</span>' : '';
+            html += '<li><a href="?item=' + encodeURIComponent(f.nameWithExt || name + '.txt') + '">' + escapeHtml(displayName) + timeStr + ' <span class="file-icon">.txt</span></a></li>';
         }
         html += '</ul>';
         c.innerHTML = html;

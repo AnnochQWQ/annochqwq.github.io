@@ -36,13 +36,14 @@ for (const folder of folders) {
             .map(f => {
                 const filePath = path.join(folderPath, f);
                 const stats = fs.statSync(filePath);
+                const mtime = stats.mtime; // 保留完整时间对象
                 return {
                     name: f.replace('.txt', ''),
-                    mtime: stats.mtimeMs
+                    nameWithExt: f,
+                    mtime: mtime.toISOString() // 转为 ISO 格式字符串
                 };
             })
-            .sort((a, b) => b.mtime - a.mtime)
-            .map(item => item.name);
+            .sort((a, b) => new Date(b.mtime) - new Date(a.mtime));
         if (txtFiles.length > 0) {
             index[folder] = txtFiles;
         }
@@ -56,10 +57,11 @@ for (const folder of folders) {
                 const stats = fs.statSync(filePath);
                 return {
                     name: f.replace('.html', ''),
-                    mtime: stats.mtimeMs
+                    nameWithExt: f,
+                    mtime: stats.mtime.toISOString()
                 };
             })
-            .sort((a, b) => b.mtime - a.mtime)
+            .sort((a, b) => new Date(b.mtime) - new Date(a.mtime))
             .map(item => item.name);
         if (htmlFiles.length > 0) {
             index.playground = htmlFiles;
