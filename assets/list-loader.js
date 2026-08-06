@@ -38,7 +38,7 @@ async function loadList(key, path) {
 
     if (item) {
         try {
-            var res = await fetch('/api/content?path=' + path + '/' + item);
+            var res = await fetch('https://raw.githubusercontent.com/AnnochQWQ/annochqwq/main/' + path + '/' + item);
             if (!res.ok) throw new Error('');
             var text = await res.text();
 
