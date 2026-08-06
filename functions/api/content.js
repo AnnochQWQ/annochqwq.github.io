@@ -5,7 +5,7 @@ export async function onRequest(context) {
         return new Response('缺少路径参数', { status: 400 });
     }
     const token = context.env.GITHUB_TOKEN;
-    const apiUrl = `https://api.github.com/repos/AnnochQWQ/annochqwq.github.io/contents/${path}`;
+    const apiUrl = `https://api.github.com/repos/AnnochQWQ/annoch-site/contents/${path}`;
     const res = await fetch(apiUrl, {
         headers: {
             'Authorization': `token ${token}`,
